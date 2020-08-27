@@ -75,7 +75,7 @@ void loop() {
   static unsigned long prev_fire_time = 0;
   static unsigned long prev_turn_time = 0;
   unsigned long cur_time;
-  char cmd[2] = {__CENTER, __HALT};
+  static char cmd[2] = {__CENTER, __HALT};
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
@@ -115,12 +115,12 @@ void loop() {
   if (cur_time - prev_fire_time >= 1000) {
     angle = TRIGGER_OFF;
   }
-
+  fireServo.write(angle);
+  //
   if (cur_time - prev_time >= 200) {
-    fireServo.write(angle);
+    prev_time = cur_time;
     panServo.write(xx);
     tiltServo.write(yy);
-    prev_time = cur_time;
 #ifdef __DEBUG__
     Console.print("cmd0: "); Console.print(cmd[0]);
     Console.print(", cmd1: "); Console.println(cmd[1]);
@@ -157,7 +157,7 @@ boolean check_goble(char *cmd) {
   } else if (joystickY < 80) {
     cmd[0] = revX ?   __RIGHT : __LEFT;
   } else
-    cmd[0] = __CENTER;
+    cmd[0] = __HALT;
 
   if (Goble.readSwitchUp() == PRESSED) {
     //cmd = '1';
