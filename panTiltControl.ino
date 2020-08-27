@@ -31,8 +31,8 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 
 boolean revX = false;
 boolean revY = false;
-const int panInterval = 10;
-const int tiltInterval = 10;
+const int panInterval = 5;
+const int tiltInterval = 5;
 
 int yy = 90;
 int xx = 90;
@@ -42,9 +42,11 @@ int xx2 = 90;
 #endif
 
 #define TRIGGER_OFF 40
-#define FIRE_PIN 2
-#define PAN_PIN 3
-#define TILT_PIN 4
+#define TRIGGER_ON  0
+#define FIRE_PIN    2
+//
+#define PAN_PIN     3
+#define TILT_PIN    4
 
 Servo fireServo;  // to hit an end stop switch
 Servo panServo;
@@ -71,109 +73,118 @@ void setup() {
 void loop() {
   static unsigned long prev_time = 0;
   static unsigned long prev_fire_time = 0;
+  static unsigned long prev_turn_time = 0;
   unsigned long cur_time;
-  char cmd;
-  int angle=TRIGGER_OFF;
+  char cmd[2] = {__CENTER, __HALT};
+  int angle = TRIGGER_OFF;
 
   cur_time = millis();
-  cmd = check_goble();
-  if (cur_time - prev_time >= 200) {
-    prev_time = cur_time;
-    switch (cmd) {
-      case __FORWARD:
-        if (yy + tiltInterval <= 180)
-          yy += 10;
-        break;
-      case __BACKWARD:
-        if (yy - tiltInterval >= 0)
-          yy -= 10;
-        break;
-      case __RIGHT:
-        if (xx + panInterval <= 180)
-          xx += 10;
-        break;
-      case __LEFT:
-        if (xx - panInterval >= 0)
-          xx -= 10;
-        break;
-      case __CENTER:
-        xx = yy = 90;
-        break;
+  if (check_goble(cmd)) {
+    if (cur_time - prev_turn_time >= 200) {
+      prev_turn_time = cur_time;
+      switch (cmd[0]) {
+        case __FORWARD:
+          if (yy + tiltInterval <= 180)
+            yy += 10;
+          break;
+        case __BACKWARD:
+          if (yy - tiltInterval >= 0)
+            yy -= 10;
+          break;
+        case __RIGHT:
+          if (xx + panInterval <= 180)
+            xx += 10;
+          break;
+        case __LEFT:
+          if (xx - panInterval >= 0)
+            xx -= 10;
+          break;
+        case __CENTER:
+          xx = yy = 90;
+          break;
+        default:
+          break;
+      }
     }
-#ifdef __DEBUG__
-    Console.print("cmd: "); Console.println(cmd);
-#endif
+    //
+    if (cmd[1] == __FIRE) {
+      angle = TRIGGER_ON;
+      prev_fire_time = cur_time;
+    }
   }
-#ifdef __DEBUG__
-  if (yy != yy2 || xx != xx2) {
-    Console.print("yy=");
-    Console.print(yy);
-    Console.print(", xx=");
-    Console.print(xx);
-    Console.println();
-    xx2 = xx;
-    yy2 = yy;
-  }
-#endif
-  if (cmd == __FIRE) {
-    angle = 0;
-    prev_fire_time = cur_time;
-  } else if (cur_time - prev_fire_time >= 1000) {
+  if (cur_time - prev_fire_time >= 1000) {
     angle = TRIGGER_OFF;
   }
-  fireServo.write(angle);
-  panServo.write(xx);
-  tiltServo.write(yy);
+
+  if (cur_time - prev_time >= 200) {
+    fireServo.write(angle);
+    panServo.write(xx);
+    tiltServo.write(yy);
+    prev_time = cur_time;
+#ifdef __DEBUG__
+    Console.print("cmd0: "); Console.print(cmd[0]);
+    Console.print(", cmd1: "); Console.println(cmd[1]);
+    if (yy != yy2 || xx != xx2) {
+      Console.print("yy=");
+      Console.print(yy);
+      Console.print(", xx=");
+      Console.print(xx);
+      Console.println();
+      xx2 = xx;
+      yy2 = yy;
+    }
+#endif
+  }
+
 }
 
-char check_goble() {
-
-  static char cmd = __HALT;
-
+boolean check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
 
   if (Goble.available()) {
-    joystickX = Goble.readJoystickX();
-    joystickY = Goble.readJoystickY();
-
-    if (joystickX > 190) {
-      cmd = revY ? __BACKWARD : __FORWARD;
-    } else if (joystickX < 80) {
-      cmd = revY ? __FORWARD : __BACKWARD;
-    } else if (joystickY > 190) {
-      cmd = revX ? __LEFT : __RIGHT;
-    } else if (joystickY < 80) {
-      cmd = revX ?   __RIGHT : __LEFT;
-    } else
-      cmd = __HALT;
-
-    if (Goble.readSwitchUp() == PRESSED) {
-      //cmd = '1';
-      cmd = __FORWARD;
-    } else if (Goble.readSwitchDown() == PRESSED) {
-      //cmd = '2';
-      cmd = __BACKWARD;
-    } else if (Goble.readSwitchLeft() == PRESSED) {
-      //cmd = '3';
-      cmd = __RIGHT;
-    } else if (Goble.readSwitchRight() == PRESSED) {
-      //cmd = '4';
-      cmd = __LEFT;
-    } else if (Goble.readSwitchSelect() == PRESSED) {
-      //cmd = '5';
-      revY = !revY;
-    } else if (Goble.readSwitchStart() == PRESSED) {
-      //cmd = '6';
-      revX = !revX;
-    } else if (Goble.readSwitchAction() == PRESSED) {
-      //cmd = '7';
-      cmd = __CENTER;
-    } else if (Goble.readSwitchMid() == PRESSED) {
-      //cmd = '8';
-      cmd = __FIRE;   
-    } 
+    return false;
   }
+  joystickX = Goble.readJoystickX();
+  joystickY = Goble.readJoystickY();
 
-  return cmd;
+  if (joystickX > 190) {
+    cmd[0] = revY ? __BACKWARD : __FORWARD;
+  } else if (joystickX < 80) {
+    cmd[0] = revY ? __FORWARD : __BACKWARD;
+  } else if (joystickY > 190) {
+    cmd[0] = revX ? __LEFT : __RIGHT;
+  } else if (joystickY < 80) {
+    cmd[0] = revX ?   __RIGHT : __LEFT;
+  } else
+    cmd[0] = __CENTER;
+
+  if (Goble.readSwitchUp() == PRESSED) {
+    //cmd = '1';
+    cmd[0] = __FORWARD;
+  } else if (Goble.readSwitchDown() == PRESSED) {
+    //cmd = '2';
+    cmd[0] = __BACKWARD;
+  } else if (Goble.readSwitchLeft() == PRESSED) {
+    //cmd = '3';
+    cmd[0] = __RIGHT;
+  } else if (Goble.readSwitchRight() == PRESSED) {
+    //cmd = '4';
+    cmd[0] = __LEFT;
+  } else if (Goble.readSwitchSelect() == PRESSED) {
+    //cmd = '5';
+    revY = !revY;
+  } else if (Goble.readSwitchStart() == PRESSED) {
+    //cmd = '6';
+    revX = !revX;
+  } else if (Goble.readSwitchAction() == PRESSED) {
+    //cmd = '7';
+    cmd[0] = __CENTER;
+  } else if (Goble.readSwitchMid() == PRESSED) {
+    //cmd = '8';
+    cmd[1] = __FIRE;
+  } else {
+    cmd[1] = __HALT;
+  }
+  return true;
 }
