@@ -156,31 +156,33 @@ boolean check_goble(char *cmd) {
     cmd[0] = revX ? __LEFT : __RIGHT;
   } else if (joystickY < 80) {
     cmd[0] = revX ?   __RIGHT : __LEFT;
+  } else  if (Goble.readSwitchUp() == PRESSED) {
+    //cmd = '1';
+    cmd[0] = revY ? __BACKWARD : __FORWARD;
+  } else if (Goble.readSwitchDown() == PRESSED) {
+    //cmd = '2';
+    cmd[0] = revY ? __FORWARD : __BACKWARD;
+  } else if (Goble.readSwitchLeft() == PRESSED) {
+    //cmd = '3';
+    cmd[0] = revX ? __LEFT : __RIGHT;
+  } else if (Goble.readSwitchRight() == PRESSED) {
+    //cmd = '4';
+    cmd[0] =  revX ?   __RIGHT : __LEFT;
+  } else if (Goble.readSwitchAction() == PRESSED) {
+    //cmd = '7';
+    cmd[0] = __CENTER;
   } else
     cmd[0] = __HALT;
 
-  if (Goble.readSwitchUp() == PRESSED) {
-    //cmd = '1';
-    cmd[0] = __FORWARD;
-  } else if (Goble.readSwitchDown() == PRESSED) {
-    //cmd = '2';
-    cmd[0] = __BACKWARD;
-  } else if (Goble.readSwitchLeft() == PRESSED) {
-    //cmd = '3';
-    cmd[0] = __RIGHT;
-  } else if (Goble.readSwitchRight() == PRESSED) {
-    //cmd = '4';
-    cmd[0] = __LEFT;
-  } else if (Goble.readSwitchSelect() == PRESSED) {
+  if (Goble.readSwitchSelect() == PRESSED) {
     //cmd = '5';
     revY = !revY;
   } else if (Goble.readSwitchStart() == PRESSED) {
     //cmd = '6';
     revX = !revX;
-  } else if (Goble.readSwitchAction() == PRESSED) {
-    //cmd = '7';
-    cmd[0] = __CENTER;
-  } else if (Goble.readSwitchMid() == PRESSED) {
+  }
+
+  if (Goble.readSwitchMid() == PRESSED) {
     //cmd = '8';
     cmd[1] = __FIRE;
   } else {
