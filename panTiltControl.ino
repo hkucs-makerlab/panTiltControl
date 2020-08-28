@@ -74,8 +74,9 @@ void loop() {
   static unsigned long prev_time = 0;
   static unsigned long prev_fire_time = 0;
   static unsigned long prev_turn_time = 0;
+  static unsigned long prev_reset_time=0;
   unsigned long cur_time;
-  static char cmd[2] = {__CENTER, __HALT};
+  static char cmd[3] = {__CENTER, __CENTER, __HALT};
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
@@ -84,30 +85,34 @@ void loop() {
       prev_turn_time = cur_time;
       switch (cmd[0]) {
         case __FORWARD:
-          if (yy + tiltInterval <= 180)
-            yy += 10;
+          if (yy + tiltInterval <= 150)
+            yy += tiltInterval;
           break;
         case __BACKWARD:
-          if (yy - tiltInterval >= 0)
-            yy -= 10;
+          if (yy - tiltInterval >= 40)
+            yy -= tiltInterval;
           break;
+        case __CENTER:
+          yy = 90;
+          break;
+      }
+
+      switch (cmd[1]) {
         case __RIGHT:
           if (xx + panInterval <= 180)
-            xx += 10;
+            xx += panInterval;
           break;
         case __LEFT:
           if (xx - panInterval >= 0)
-            xx -= 10;
+            xx -= panInterval;
           break;
         case __CENTER:
-          xx = yy = 90;
-          break;
-        default:
+          xx  = 90;
           break;
       }
     }
     //
-    if (cmd[1] == __FIRE) {
+    if (cmd[2] == __FIRE) {
       angle = TRIGGER_ON;
       prev_fire_time = cur_time;
     }
@@ -123,7 +128,8 @@ void loop() {
     tiltServo.write(yy);
 #ifdef __DEBUG__
     Console.print("cmd0: "); Console.print(cmd[0]);
-    Console.print(", cmd1: "); Console.println(cmd[1]);
+    Console.print(", cmd1: "); Console.print(cmd[1]);
+    Console.print(", cmd2: "); Console.println(cmd[2]);
     if (yy != yy2 || xx != xx2) {
       Console.print("yy=");
       Console.print(yy);
@@ -135,7 +141,12 @@ void loop() {
     }
 #endif
   }
-
+  
+  if ( cur_time - prev_reset_time >= 2000 ) {
+    if (xx == 0 || xx == 180) xx=90;
+    //if (yy == 40 || yy == 150) yy=90;
+    prev_reset_time=cur_time;
+  }
 }
 
 boolean check_goble(char *cmd) {
@@ -145,6 +156,7 @@ boolean check_goble(char *cmd) {
   if (Goble.available()) {
     return false;
   }
+
   joystickX = Goble.readJoystickX();
   joystickY = Goble.readJoystickY();
 
@@ -152,27 +164,29 @@ boolean check_goble(char *cmd) {
     cmd[0] = revY ? __BACKWARD : __FORWARD;
   } else if (joystickX < 80) {
     cmd[0] = revY ? __FORWARD : __BACKWARD;
-  } else if (joystickY > 190) {
-    cmd[0] = revX ? __LEFT : __RIGHT;
-  } else if (joystickY < 80) {
-    cmd[0] = revX ?   __RIGHT : __LEFT;
-  } else  if (Goble.readSwitchUp() == PRESSED) {
+  } else if (Goble.readSwitchUp() == PRESSED) {
     //cmd = '1';
     cmd[0] = revY ? __BACKWARD : __FORWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
     //cmd = '2';
     cmd[0] = revY ? __FORWARD : __BACKWARD;
+  } else {
+    cmd[0] = __HALT;
+  }
+
+  if (joystickY > 190) {
+    cmd[1] = revX ? __LEFT : __RIGHT;
+  } else if (joystickY < 80) {
+    cmd[1] = revX ?   __RIGHT : __LEFT;
   } else if (Goble.readSwitchLeft() == PRESSED) {
     //cmd = '3';
     cmd[0] = revX ? __LEFT : __RIGHT;
   } else if (Goble.readSwitchRight() == PRESSED) {
     //cmd = '4';
     cmd[0] =  revX ?   __RIGHT : __LEFT;
-  } else if (Goble.readSwitchAction() == PRESSED) {
-    //cmd = '7';
-    cmd[0] = __CENTER;
-  } else
-    cmd[0] = __HALT;
+  } else  {
+    cmd[1] = __HALT;
+  }
 
   if (Goble.readSwitchSelect() == PRESSED) {
     //cmd = '5';
@@ -182,11 +196,17 @@ boolean check_goble(char *cmd) {
     revX = !revX;
   }
 
+  if (Goble.readSwitchAction() == PRESSED) {
+    //cmd = '7';
+    cmd[0] = __CENTER;
+    cmd[1] = __CENTER;
+  }
+
   if (Goble.readSwitchMid() == PRESSED) {
     //cmd = '8';
-    cmd[1] = __FIRE;
+    cmd[2] = __FIRE;
   } else {
-    cmd[1] = __HALT;
+    cmd[2] = __HALT;
   }
   return true;
 }
