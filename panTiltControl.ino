@@ -20,19 +20,23 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 
 
 //
-#define __FORWARD '1'
-#define __BACKWARD '2'
+#define __UPWARD '1'
+#define __DOWNWARD '2'
 #define __RIGHT '3'
 #define __LEFT '4'
-#define __FIRE '8'
 #define __CENTER '7'
+#define __FIRE '8'
 #define __HALT 'h'
 
 
 boolean revX = false;
 boolean revY = false;
 const int panInterval = 5;
+const int panMax = 180;
+const int panMin = 0;
 const int tiltInterval = 5;
+const int tiltMax = 140;
+const int tiltMin = 40;
 
 int yy = 90;
 int xx = 90;
@@ -84,12 +88,12 @@ void loop() {
     if (cur_time - prev_turn_time >= 200) {
       prev_turn_time = cur_time;
       switch (cmd[0]) {
-        case __FORWARD:
-          if (yy + tiltInterval <= 150)
+        case __UPWARD:
+          if (yy + tiltInterval <= tiltMax)
             yy += tiltInterval;
           break;
-        case __BACKWARD:
-          if (yy - tiltInterval >= 40)
+        case __DOWNWARD:
+          if (yy - tiltInterval >= tiltMin)
             yy -= tiltInterval;
           break;
         case __CENTER:
@@ -99,11 +103,11 @@ void loop() {
 
       switch (cmd[1]) {
         case __RIGHT:
-          if (xx + panInterval <= 180)
+          if (xx + panInterval <= panMax)
             xx += panInterval;
           break;
         case __LEFT:
-          if (xx - panInterval >= 0)
+          if (xx - panInterval >= panMin)
             xx -= panInterval;
           break;
         case __CENTER:
@@ -161,15 +165,15 @@ boolean check_goble(char *cmd) {
   joystickY = Goble.readJoystickY();
 
   if (joystickX > 190) {
-    cmd[0] = revY ? __BACKWARD : __FORWARD;
+    cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else if (joystickX < 80) {
-    cmd[0] = revY ? __FORWARD : __BACKWARD;
+    cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (Goble.readSwitchUp() == PRESSED) {
     //cmd = '1';
-    cmd[0] = revY ? __BACKWARD : __FORWARD;
+    cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
     //cmd = '2';
-    cmd[0] = revY ? __FORWARD : __BACKWARD;
+    cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else {
     cmd[0] = __HALT;
   }
