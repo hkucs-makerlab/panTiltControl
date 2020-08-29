@@ -33,16 +33,18 @@ boolean revX = false;
 boolean revY = false;
 const int panInterval = 5;
 const int panMax = 180;
+const int panMid = 90;
 const int panMin = 0;
 const int tiltInterval = 5;
 const int tiltMax = 140;
+const int tiltMid = 90;
 const int tiltMin = 40;
 
-int yy = 90;
-int xx = 90;
+int yy = tiltMid;
+int xx = panMid;
 #ifdef __DEBUG__
-int yy2 = 90;
-int xx2 = 90;
+int yy2 = tiltMid;
+int xx2 = panMid;
 #endif
 
 #define TRIGGER_OFF 40
@@ -78,7 +80,7 @@ void loop() {
   static unsigned long prev_time = 0;
   static unsigned long prev_fire_time = 0;
   static unsigned long prev_turn_time = 0;
-  static unsigned long prev_reset_time=0;
+  static unsigned long prev_reset_time = 0;
   unsigned long cur_time;
   static char cmd[3] = {__CENTER, __CENTER, __HALT};
   int angle = TRIGGER_OFF;
@@ -97,7 +99,7 @@ void loop() {
             yy -= tiltInterval;
           break;
         case __CENTER:
-          yy = 90;
+          yy = tiltMid;
           break;
       }
 
@@ -111,7 +113,7 @@ void loop() {
             xx -= panInterval;
           break;
         case __CENTER:
-          xx  = 90;
+          xx  = panMid;
           break;
       }
     }
@@ -145,12 +147,13 @@ void loop() {
     }
 #endif
   }
-  
+/*
   if ( cur_time - prev_reset_time >= 2000 ) {
-    if (xx == 0 || xx == 180) xx=90;
-    //if (yy == 40 || yy == 150) yy=90;
-    prev_reset_time=cur_time;
+    if (xx == panMin || xx == panMax) xx = panMid;
+    if (yy == tiltMin || yy == tiltMax) yy = tiltMid;
+    prev_reset_time = cur_time;
   }
+*/
 }
 
 boolean check_goble(char *cmd) {
