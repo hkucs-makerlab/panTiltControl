@@ -1,13 +1,18 @@
 #include <Servo.h>
 #include "GoBLE.hpp"
 
+#define __NUNCHUK__
+#ifdef __NUNCHUK__
+#include "Nunchuk.h"
+#endif
+
 #define __SOFTWARE_SERIAL__
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
 #define __DEBUG__
 #define Console Serial
-#define BT_RX_PIN A4
-#define BT_TX_PIN A5
+#define BT_RX_PIN 13
+#define BT_TX_PIN 12
 SoftwareSerial BlueTooth(BT_RX_PIN, BT_TX_PIN);
 _GoBLE<SoftwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #else
@@ -51,9 +56,9 @@ int xx2 = panMid;
 #define TRIGGER_ON  0
 #define FIRE_PIN    2
 //
-#define JOY_X_PIN       A0
-#define JOY_Y_PIN       A1
-#define JOY_SWITCH_PIN  9
+#define JOYSTICK_X_PIN       A0
+#define JOYSTICK_Y_PIN       A1
+#define JOYSTICK_SWITCH_PIN  9
 
 //
 #define PAN_PIN     3
@@ -74,7 +79,10 @@ void setup() {
   fireServo.write(TRIGGER_OFF);
   panServo.attach(PAN_PIN);
   tiltServo.attach(TILT_PIN);
-  pinMode(JOY_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(JOYSTICK_SWITCH_PIN, INPUT_PULLUP);
+#ifdef __NUNCHUK__
+  nunchuk_init();
+#endif
 
 #ifdef __DEBUG__
   Console.println("console started");
@@ -94,8 +102,12 @@ void loop() {
   cur_time = millis();
   if (!check_goble(cmd)) {
     check_joystick(cmd);
+#ifdef __NUNCHUK__
+    check_nunchuk(cmd);
+#endif
   }
-  if (cur_time - prev_turn_time >= 150) {
+
+  if (cur_time - prev_turn_time >= 100) {
     prev_turn_time = cur_time;
     switch (cmd[0]) {
       case __UPWARD:
@@ -134,7 +146,7 @@ void loop() {
     angle = TRIGGER_OFF;
   }
   fireServo.write(angle);
-  
+
   //
   if (cur_time - prev_time >= 200) {
     prev_time = cur_time;
@@ -164,10 +176,76 @@ void loop() {
   */
 }
 
+#ifdef __NUNCHUK__
+boolean check_nunchuk(char *cmd) {
+  int joystickX, joystickY, switchState;
+
+  String msg;
+
+
+  if (!nunchuk_read()) {
+    return false;
+  }
+  
+  //nunchuk_print();
+  if (nunchuk_buttonC() && nunchuk_buttonZ()) {
+    cmd[0] = __CENTER;
+    cmd[1] = __CENTER;
+    cmd[2] = __HALT;
+    return true;
+  }
+
+  if (nunchuk_buttonC()) {
+    //Console.println("Pressed button C");
+    float pitch_angle = nunchuk_pitch() * 180 / M_PI;
+    if (pitch_angle >= -90 && pitch_angle <= 90) {
+      joystickY = map(pitch_angle, 60, -90, 255, 0);
+    } else {
+      joystickY = 128;
+    }
+    float roll_angle = nunchuk_roll() * 180 / M_PI;
+    if (roll_angle >= -90 && roll_angle <= 90) {
+      joystickX = map(roll_angle, -90, 90, 0, 255);
+    } else {
+      joystickY = 128;
+    }
+    //msg = "Pitch: " + String(pitch_angle) + ", Roll: " + String(roll_angle);
+    //Console.println(msg);
+  } else {
+    joystickX = map(nunchuk_joystickX(), -126, 127, 0, 255);
+    joystickY = map(nunchuk_joystickY(), -126, 127, 0, 255);
+  }
+  //msg = "X: " + String(joystickX) + " ,Y:" + String(joystickY);
+  //Console.println(msg);
+  if (joystickY > 210) {
+    cmd[0] = __UPWARD ;
+  } else if (joystickY < 90) {
+    cmd[0] = __DOWNWARD;
+  } else {
+    cmd[0] = __HALT;
+  }
+  if (joystickX > 190) {
+    cmd[1] = __LEFT;
+  } else if (joystickX < 50) {
+    cmd[1] = __RIGHT ;
+  } else  {
+    cmd[1] = __HALT;
+  }
+  if (nunchuk_buttonZ()) {
+    //Console.println("Pressed button Z");
+    cmd[2] = __FIRE;
+  } else {
+    cmd[2] = __HALT;
+  }
+
+  return true;
+}
+#endif
+
 boolean check_joystick( char *cmd) {
   int joystickX, joystickY, switchState;
 
-  joystickY = map(analogRead(JOY_Y_PIN), 0, 1023, 0, 255);
+  joystickY = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
   if (joystickY > 190) {
     cmd[0] = __DOWNWARD ;
   } else if (joystickY < 50) {
@@ -176,7 +254,7 @@ boolean check_joystick( char *cmd) {
     cmd[0] = __HALT;
   }
 
-  joystickX = map(analogRead(JOY_X_PIN), 0, 1023, 0, 255);
+  joystickX = map(analogRead(JOYSTICK_X_PIN), 0, 1023, 0, 255);
   if (joystickX > 190) {
     cmd[1] = __LEFT;
   } else if (joystickX < 50) {
@@ -185,7 +263,7 @@ boolean check_joystick( char *cmd) {
     cmd[1] = __HALT;
   }
 
-  switchState = digitalRead(JOY_SWITCH_PIN);
+  switchState = digitalRead(JOYSTICK_SWITCH_PIN);
   if (switchState == 0) {
     cmd[2] = __FIRE;
   } else {
