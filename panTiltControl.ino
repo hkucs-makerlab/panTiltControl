@@ -51,6 +51,11 @@ int xx2 = panMid;
 #define TRIGGER_ON  0
 #define FIRE_PIN    2
 //
+#define JOY_X_PIN       A0
+#define JOY_Y_PIN       A1
+#define JOY_SWITCH_PIN  9
+
+//
 #define PAN_PIN     3
 #define TILT_PIN    4
 
@@ -69,6 +74,7 @@ void setup() {
   fireServo.write(TRIGGER_OFF);
   panServo.attach(PAN_PIN);
   tiltServo.attach(TILT_PIN);
+  pinMode(JOY_SWITCH_PIN, INPUT_PULLUP);
 
 #ifdef __DEBUG__
   Console.println("console started");
@@ -86,47 +92,49 @@ void loop() {
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
-  if (check_goble(cmd)) {
-    if (cur_time - prev_turn_time >= 200) {
-      prev_turn_time = cur_time;
-      switch (cmd[0]) {
-        case __UPWARD:
-          if (yy + tiltInterval <= tiltMax)
-            yy += tiltInterval;
-          break;
-        case __DOWNWARD:
-          if (yy - tiltInterval >= tiltMin)
-            yy -= tiltInterval;
-          break;
-        case __CENTER:
-          yy = tiltMid;
-          break;
-      }
+  if (!check_goble(cmd)) {
+    check_joystick(cmd);
+  }
+  if (cur_time - prev_turn_time >= 150) {
+    prev_turn_time = cur_time;
+    switch (cmd[0]) {
+      case __UPWARD:
+        if (yy + tiltInterval <= tiltMax)
+          yy += tiltInterval;
+        break;
+      case __DOWNWARD:
+        if (yy - tiltInterval >= tiltMin)
+          yy -= tiltInterval;
+        break;
+      case __CENTER:
+        yy = tiltMid;
+        break;
+    }
 
-      switch (cmd[1]) {
-        case __RIGHT:
-          if (xx + panInterval <= panMax)
-            xx += panInterval;
-          break;
-        case __LEFT:
-          if (xx - panInterval >= panMin)
-            xx -= panInterval;
-          break;
-        case __CENTER:
-          xx  = panMid;
-          break;
-      }
+    switch (cmd[1]) {
+      case __RIGHT:
+        if (xx + panInterval <= panMax)
+          xx += panInterval;
+        break;
+      case __LEFT:
+        if (xx - panInterval >= panMin)
+          xx -= panInterval;
+        break;
+      case __CENTER:
+        xx  = panMid;
+        break;
     }
-    //
-    if (cmd[2] == __FIRE) {
-      angle = TRIGGER_ON;
-      prev_fire_time = cur_time;
-    }
+  }
+  //
+  if (cmd[2] == __FIRE) {
+    angle = TRIGGER_ON;
+    prev_fire_time = cur_time;
   }
   if (cur_time - prev_fire_time >= 1000) {
     angle = TRIGGER_OFF;
   }
   fireServo.write(angle);
+  
   //
   if (cur_time - prev_time >= 200) {
     prev_time = cur_time;
@@ -147,20 +155,51 @@ void loop() {
     }
 #endif
   }
-/*
-  if ( cur_time - prev_reset_time >= 2000 ) {
-    if (xx == panMin || xx == panMax) xx = panMid;
-    if (yy == tiltMin || yy == tiltMax) yy = tiltMid;
-    prev_reset_time = cur_time;
+  /*
+    if ( cur_time - prev_reset_time >= 2000 ) {
+      if (xx == panMin || xx == panMax) xx = panMid;
+      if (yy == tiltMin || yy == tiltMax) yy = tiltMid;
+      prev_reset_time = cur_time;
+    }
+  */
+}
+
+boolean check_joystick( char *cmd) {
+  int joystickX, joystickY, switchState;
+
+  joystickY = map(analogRead(JOY_Y_PIN), 0, 1023, 0, 255);
+  if (joystickY > 190) {
+    cmd[0] = __DOWNWARD ;
+  } else if (joystickY < 50) {
+    cmd[0] =  __UPWARD;
+  } else {
+    cmd[0] = __HALT;
   }
-*/
+
+  joystickX = map(analogRead(JOY_X_PIN), 0, 1023, 0, 255);
+  if (joystickX > 190) {
+    cmd[1] = __LEFT;
+  } else if (joystickX < 50) {
+    cmd[1] = __RIGHT ;
+  } else  {
+    cmd[1] = __HALT;
+  }
+
+  switchState = digitalRead(JOY_SWITCH_PIN);
+  if (switchState == 0) {
+    cmd[2] = __FIRE;
+  } else {
+    cmd[2] = __HALT;
+  }
+
+  return true;
 }
 
 boolean check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
 
-  if (Goble.available()) {
+  if (!Goble.available()) {
     return false;
   }
 
