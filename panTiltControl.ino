@@ -197,12 +197,12 @@ void loop() {
 }
 
 #ifdef __NUNCHUK__
-boolean check_nunchuk(char *cmd) {
+void check_nunchuk(char *cmd) {
   int joystickX, joystickY, switchState;
   String msg;
 
   if (!nunchuk_read()) {
-    return false;
+    return;
   }
 
   //nunchuk_print();
@@ -210,7 +210,7 @@ boolean check_nunchuk(char *cmd) {
     cmd[0] = __CENTER;
     cmd[1] = __CENTER;
     cmd[2] = __HALT;
-    return true;
+    return;
   }
 
   if (nunchuk_buttonC()) {
@@ -255,13 +255,11 @@ boolean check_nunchuk(char *cmd) {
   } else {
     cmd[2] = __HALT;
   }
-
-  return true;
 }
 #endif
 
 #ifdef __JOYSTCIK__
-boolean check_joystick( char *cmd) {
+void check_joystick( char *cmd) {
   int joystickX, joystickY, switchState;
 
   joystickY = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
@@ -288,19 +286,16 @@ boolean check_joystick( char *cmd) {
   } else {
     cmd[2] = __HALT;
   }
-
-  return true;
 }
 #endif
 
 #ifdef __GOBLE__ 
-boolean check_goble(char *cmd) {
+void check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
-  boolean rc = false;
 
   if (!Goble.available()) {
-    return true;
+    return;
   }
   joystickX = Goble.readJoystickX();
   joystickY = Goble.readJoystickY();
@@ -353,6 +348,5 @@ boolean check_goble(char *cmd) {
   } else {
     cmd[2] = __HALT;
   }
-  return true;
 }
 #endif
