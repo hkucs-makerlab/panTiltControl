@@ -1,7 +1,6 @@
 #include <Servo.h>
-#include "GoBLE.hpp"
 
-
+// uncomment one to select the way of control
 #define __JOYSTCIK__
 //#define __NUNCHUK__
 //#define __GOBLE__
@@ -10,19 +9,34 @@
 #include "Nunchuk.h"
 #endif
 
-#define __SOFTWARE_SERIAL__
+#ifdef __GOBLE__
+#include "GoBLE.hpp"
+#endif
+
+#ifdef __JOYSTCIK__
+#define JOYSTICK_X_PIN       A0
+#define JOYSTICK_Y_PIN       A1
+#define JOYSTICK_SWITCH_PIN  9
+#endif
+
+//#define __DEBUG__
+//#define __SOFTWARE_SERIAL__
+
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
-#define __DEBUG__
 #define Console Serial
 #define BT_RX_PIN 13
 #define BT_TX_PIN 12
 SoftwareSerial BlueTooth(BT_RX_PIN, BT_TX_PIN);
+#ifdef __GOBLE__  
 _GoBLE<SoftwareSerial, HardwareSerial> Goble(BlueTooth, Console);
+#endif
 #else
 #define Console Serial
 #define BlueTooth Serial
+#ifdef __GOBLE__  
 _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
+#endif
 #endif
 //
 #define BAUD_RATE 38400
@@ -57,31 +71,29 @@ int xx2 = panMid;
 
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
-#define FIRE_PIN    2
-//
-#define JOYSTICK_X_PIN       A0
-#define JOYSTICK_Y_PIN       A1
-#define JOYSTICK_SWITCH_PIN  9
+#define FIRE_SERVO_PIN    2
 
 //
-#define PAN_PIN     3
-#define TILT_PIN    4
+#define PAN_SERVO_PIN     3
+#define TILT_SERVO_PIN    4
 
 Servo fireServo;  // to hit an end stop switch
 Servo panServo;
 Servo tiltServo;
 
 void setup() {
+#ifdef __GOBLE__  
   Goble.begin(BAUD_RATE);
+#endif  
 #ifdef __DEBUG__
   Console.begin(115200);
   Console.println("in debugging mode");
 #endif
 
-  fireServo.attach(FIRE_PIN);
+  fireServo.attach(FIRE_SERVO_PIN);
   fireServo.write(TRIGGER_OFF);
-  panServo.attach(PAN_PIN);
-  tiltServo.attach(TILT_PIN);
+  panServo.attach(PAN_SERVO_PIN);
+  tiltServo.attach(TILT_SERVO_PIN);
 
 #ifdef __JOYSTCIK__
   pinMode(JOYSTICK_SWITCH_PIN, INPUT_PULLUP);
@@ -111,8 +123,9 @@ void loop() {
   check_nunchuk(cmd);
 #elif defined __JOYSTCIK__
   check_joystick(cmd);
+#elif defined __GOBLE__  
+ check_goble(cmd);
 #else
-  check_goble(cmd);
 #endif
   if (cur_time - prev_turn_time >= 150) {
     prev_turn_time = cur_time;
@@ -247,6 +260,7 @@ boolean check_nunchuk(char *cmd) {
 }
 #endif
 
+#ifdef __JOYSTCIK__
 boolean check_joystick( char *cmd) {
   int joystickX, joystickY, switchState;
 
@@ -277,7 +291,9 @@ boolean check_joystick( char *cmd) {
 
   return true;
 }
+#endif
 
+#ifdef __GOBLE__ 
 boolean check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
@@ -339,3 +355,4 @@ boolean check_goble(char *cmd) {
   }
   return true;
 }
+#endif
