@@ -260,28 +260,28 @@ void check_nunchuk(char *cmd) {
 
 #ifdef __JOYSTCIK__
 void check_joystick( char *cmd) {
-  int joystickX, joystickY, switchState;
+  int tilt, pan, fire;
 
-  joystickY = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
-  if (joystickY > 190) {
-    cmd[0] = __DOWNWARD ;
-  } else if (joystickY < 50) {
+  pan = map(analogRead(JOYSTICK_X_PIN), 0, 1023, 0, 255);
+  if (pan > 190) {
     cmd[0] =  __UPWARD;
+  } else if (pan < 50) {
+    cmd[0] = __DOWNWARD ;
   } else {
     cmd[0] = __HALT;
   }
 
-  joystickX = map(analogRead(JOYSTICK_X_PIN), 0, 1023, 0, 255);
-  if (joystickX > 190) {
+  tilt = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
+  if (tilt > 190) {
     cmd[1] = __LEFT;
-  } else if (joystickX < 50) {
+  } else if (tilt < 50) {
     cmd[1] = __RIGHT ;
   } else  {
     cmd[1] = __HALT;
   }
 
-  switchState = digitalRead(JOYSTICK_SWITCH_PIN);
-  if (switchState == 0) {
+  fire = digitalRead(JOYSTICK_SWITCH_PIN);
+  if (fire == 0) {
     cmd[2] = __FIRE;
   } else {
     cmd[2] = __HALT;
