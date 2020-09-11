@@ -1,7 +1,11 @@
 #include <Servo.h>
 #include "GoBLE.hpp"
 
-#define __NUNCHUK__
+
+#define __JOYSTCIK__
+//#define __NUNCHUK__
+//#define __GOBLE__
+//
 #ifdef __NUNCHUK__
 #include "Nunchuk.h"
 #endif
@@ -23,7 +27,6 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 //
 #define BAUD_RATE 38400
 
-
 //
 #define __UPWARD '1'
 #define __DOWNWARD '2'
@@ -43,7 +46,7 @@ const int panMin = 0;
 const int tiltInterval = 5;
 const int tiltMax = 140;
 const int tiltMid = 90;
-const int tiltMin = 40;
+const int tiltMin = 65;
 
 int yy = tiltMid;
 int xx = panMid;
@@ -79,7 +82,11 @@ void setup() {
   fireServo.write(TRIGGER_OFF);
   panServo.attach(PAN_PIN);
   tiltServo.attach(TILT_PIN);
+
+#ifdef __JOYSTCIK__
   pinMode(JOYSTICK_SWITCH_PIN, INPUT_PULLUP);
+#endif
+
 #ifdef __NUNCHUK__
   nunchuk_init();
 #endif
@@ -100,14 +107,14 @@ void loop() {
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
-  if (!check_goble(cmd)) {
-    check_joystick(cmd);
 #ifdef __NUNCHUK__
-    check_nunchuk(cmd);
+  check_nunchuk(cmd);
+#elif defined __JOYSTCIK__
+  check_joystick(cmd);
+#else
+  check_goble(cmd);
 #endif
-  }
-
-  if (cur_time - prev_turn_time >= 100) {
+  if (cur_time - prev_turn_time >= 150) {
     prev_turn_time = cur_time;
     switch (cmd[0]) {
       case __UPWARD:
@@ -179,14 +186,12 @@ void loop() {
 #ifdef __NUNCHUK__
 boolean check_nunchuk(char *cmd) {
   int joystickX, joystickY, switchState;
-
   String msg;
-
 
   if (!nunchuk_read()) {
     return false;
   }
-  
+
   //nunchuk_print();
   if (nunchuk_buttonC() && nunchuk_buttonZ()) {
     cmd[0] = __CENTER;
@@ -276,24 +281,24 @@ boolean check_joystick( char *cmd) {
 boolean check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
+  boolean rc = false;
 
   if (!Goble.available()) {
-    return false;
+    return true;
   }
-
   joystickX = Goble.readJoystickX();
   joystickY = Goble.readJoystickY();
 
   if (joystickX > 190) {
-    cmd[0] = revY ? __DOWNWARD : __UPWARD;
-  } else if (joystickX < 80) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
+  } else if (joystickX < 80) {
+    cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else if (Goble.readSwitchUp() == PRESSED) {
     //cmd = '1';
-    cmd[0] = revY ? __DOWNWARD : __UPWARD;
+    cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
     //cmd = '2';
-    cmd[0] = revY ? __UPWARD : __DOWNWARD;
+    cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else {
     cmd[0] = __HALT;
   }
