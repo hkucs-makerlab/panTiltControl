@@ -8,7 +8,7 @@
 //#define __DEBUG_PACKET__
 #ifdef __DEBUG_PACKET__
 #define DEBUGDATARECEIVER  1
-#define DEBUGDATARAW      0   
+#define DEBUGDATARAW      0
 #define DEBUGPARSER       0
 #define DEBUGCHECKSUM     1
 #define DEBUGUPDATEBUTTON 1
@@ -28,6 +28,10 @@ const byte SWITCH_5       = 5;
 const byte SWITCH_6       = 6;
 const byte SWITCH_7       = 7;
 const byte SWITCH_8       = 8;
+const byte SWITCH_9       = 9;
+const byte SWITCH_10      = 10;
+const byte SWITCH_11      = 11;
+const byte SWITCH_12      = 12;
 
 const byte SWITCH_UP      = SWITCH_1;
 const byte SWITCH_RIGHT   = SWITCH_2;
@@ -38,6 +42,12 @@ const byte SWITCH_SELECT  = SWITCH_5;
 const byte SWITCH_START   = SWITCH_6;
 const byte SWITCH_ACTION  = SWITCH_7;
 const byte SWITCH_MID     = SWITCH_8;
+
+const byte SWITCH_TILT_UP = SWITCH_9;
+const byte SWITCH_TILT_DN = SWITCH_10;
+const byte SWITCH_PAN_LF  = SWITCH_11;
+const byte SWITCH_PAN_RT  = SWITCH_12;
+
 
 /*
    These constants can be use for comparison with the value returned
@@ -67,8 +77,7 @@ const boolean RELEASED  = HIGH;
 #define DEFAULTADDRESS          0x11
 #define DEFAULTPACKLENGTH 10
 
-#define MAXBUTTONNUMBER         8
-#define MAXBUTTONID             9
+#define MAXBUTTONID             SWITCH_12
 
 #define PARSESUCCESS            0x10
 
@@ -79,15 +88,14 @@ typedef struct
   byte  header1;          // 0x55
   byte  header2;          // 0xAA
   byte  address;          // 0x11
-
-  byte  latestDigitalButtonNumber;
   byte  digitalButtonNumber;
-
   byte  joystickPosition;
-  byte  buttonPayload[MAXBUTTONNUMBER];
+  byte  buttonPayload[MAXBUTTONID];
   byte  joystickPayload[4];
   byte  checkSum;
-
+  //
+  byte  latestDigitalButtonNumber;
+  //
   byte  commandLength;
   byte  parseState;
   boolean commandFlag;
@@ -99,13 +107,15 @@ class _GoBLE {
 
   public:
     _GoBLE(T&, T2&);
-    
-  
+
+
     void begin(unsigned long baudrate);
     boolean available();
 
     int readJoystickX();
     int readJoystickY();
+    int readJoystickX2();
+    int readJoystickY2();
     /*
        Reads the current state of a button. It will return
        LOW if the button is pressed, and HIGH otherwise.
@@ -118,6 +128,10 @@ class _GoBLE {
     boolean readSwitchStart();
     boolean readSwitchAction();
     boolean readSwitchMid();
+    boolean readSwitchPanLf();
+    boolean readSwitchPanRt();
+    boolean readSwitchTiltUp();
+    boolean readSwitchTiltDn();
 
   private:
     T2& Console;
@@ -126,8 +140,9 @@ class _GoBLE {
     // create a queue of characters.
     QueueArray <byte> bleQueue;
 
-    int _joystickX, _joystickY;
-    int _button[MAXBUTTONID];
+    byte _joystickX, _joystickY;
+    byte _joystickX2, _joystickY2;
+    byte _button[MAXBUTTONID + 1]; // index 0 is not used, thus plus 1
 
     void updateJoystickVal();
     void updateButtonState();

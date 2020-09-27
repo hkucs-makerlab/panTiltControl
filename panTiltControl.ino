@@ -300,7 +300,7 @@ void check_goble(char *cmd) {
   joystickX = Goble.readJoystickX();
   joystickY = Goble.readJoystickY();
 
-  if (joystickX > 190) {
+  if (joystickY > 190) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (joystickX < 80) {
     cmd[0] = revY ? __DOWNWARD : __UPWARD;
@@ -314,7 +314,7 @@ void check_goble(char *cmd) {
     cmd[0] = __HALT;
   }
 
-  if (joystickY > 190) {
+  if (joystickX > 190) {
     cmd[1] = revX ? __LEFT : __RIGHT;
   } else if (joystickY < 80) {
     cmd[1] = revX ?   __RIGHT : __LEFT;
