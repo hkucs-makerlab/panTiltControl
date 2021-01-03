@@ -1,4 +1,4 @@
-#include <Servo.h>
+#include "GPIOServo.hpp"
 
 // uncomment one to select the way of control
 #define __JOYSTCIK__
@@ -20,7 +20,7 @@
 #endif
 
 //#define __DEBUG__
-//#define __SOFTWARE_SERIAL__
+#define __SOFTWARE_SERIAL__
 
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
@@ -28,13 +28,13 @@
 #define BT_RX_PIN 13
 #define BT_TX_PIN 12
 SoftwareSerial BlueTooth(BT_RX_PIN, BT_TX_PIN);
-#ifdef __GOBLE__  
+#ifdef __GOBLE__
 _GoBLE<SoftwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #endif
 #else
 #define Console Serial
 #define BlueTooth Serial
-#ifdef __GOBLE__  
+#ifdef __GOBLE__
 _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #endif
 #endif
@@ -62,13 +62,11 @@ const int tiltMax = 140;
 const int tiltMid = 90;
 const int tiltMin = 65;
 
-int yy = tiltMid;
-int xx = panMid;
-#ifdef __DEBUG__
-int yy2 = tiltMid;
-int xx2 = panMid;
-#endif
-
+int yAngle = tiltMid;
+int xAngle = panMid;
+boolean panLeft = true;
+boolean tiltUp = true;
+//
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
 #define FIRE_SERVO_PIN    2
@@ -77,14 +75,14 @@ int xx2 = panMid;
 #define PAN_SERVO_PIN     3
 #define TILT_SERVO_PIN    4
 
-Servo fireServo;  // to hit an end stop switch
-Servo panServo;
-Servo tiltServo;
+GPIOservo fireServo(FIRE_SERVO_PIN); // to hit an end stop switch
+GPIOservo panServo(PAN_SERVO_PIN);
+GPIOservo tiltServo(TILT_SERVO_PIN);
 
 void setup() {
-#ifdef __GOBLE__  
+#ifdef __GOBLE__
   Goble.begin(BAUD_RATE);
-#endif  
+#endif
 #ifdef __DEBUG__
   Console.begin(115200);
   Console.println("in debugging mode");
@@ -93,7 +91,9 @@ void setup() {
   fireServo.attach(FIRE_SERVO_PIN);
   fireServo.write(TRIGGER_OFF);
   panServo.attach(PAN_SERVO_PIN);
+  panServo.write(panMid);
   tiltServo.attach(TILT_SERVO_PIN);
+  tiltServo.write(tiltMid);
 
 #ifdef __JOYSTCIK__
   pinMode(JOYSTICK_SWITCH_PIN, INPUT_PULLUP);
@@ -112,8 +112,6 @@ void setup() {
 void loop() {
   static unsigned long prev_time = 0;
   static unsigned long prev_fire_time = 0;
-  static unsigned long prev_turn_time = 0;
-  static unsigned long prev_reset_time = 0;
   unsigned long cur_time;
   static char cmd[3] = {__CENTER, __CENTER, __HALT};
   int angle = TRIGGER_OFF;
@@ -123,39 +121,32 @@ void loop() {
   check_nunchuk(cmd);
 #elif defined __JOYSTCIK__
   check_joystick(cmd);
-#elif defined __GOBLE__  
- check_goble(cmd);
+#elif defined __GOBLE__
+  check_goble(cmd);
 #else
 #endif
-  if (cur_time - prev_turn_time >= 150) {
-    prev_turn_time = cur_time;
-    switch (cmd[0]) {
-      case __UPWARD:
-        if (yy + tiltInterval <= tiltMax)
-          yy += tiltInterval;
-        break;
-      case __DOWNWARD:
-        if (yy - tiltInterval >= tiltMin)
-          yy -= tiltInterval;
-        break;
-      case __CENTER:
-        yy = tiltMid;
-        break;
-    }
+  switch (cmd[0]) {
+    case __UPWARD:
+      tiltUp = true;
+      break;
+    case __DOWNWARD:
+      tiltUp = false;
+      break;
+    case __CENTER:
+      yAngle = tiltMid;
+      break;
+  }
 
-    switch (cmd[1]) {
-      case __RIGHT:
-        if (xx + panInterval <= panMax)
-          xx += panInterval;
-        break;
-      case __LEFT:
-        if (xx - panInterval >= panMin)
-          xx -= panInterval;
-        break;
-      case __CENTER:
-        xx  = panMid;
-        break;
-    }
+  switch (cmd[1]) {
+    case __RIGHT:
+      panLeft = false;
+      break;
+    case __LEFT:
+      panLeft = true;
+      break;
+    case __CENTER:
+      xAngle = panMid;
+      break;
   }
   //
   if (cmd[2] == __FIRE) {
@@ -166,25 +157,47 @@ void loop() {
     angle = TRIGGER_OFF;
   }
   fireServo.write(angle);
-
+  //    panServo.sweep();
+  //    tiltServo.sweep();
   //
-  if (cur_time - prev_time >= 200) {
+  const short angleTimeGap = 20;
+  if (cur_time - prev_time >= angleTimeGap) {
+    long diffTime = cur_time - prev_time;
+    int diffAngle = diffTime / angleTimeGap;
     prev_time = cur_time;
-    panServo.write(xx);
-    tiltServo.write(yy);
+    panServo.write(xAngle);
+    if (cmd[1] != 'h') {
+      if (panLeft) {
+        xAngle -= diffAngle;
+        if (xAngle < panMin) {
+          xAngle = 0;
+        }
+      } else {
+        xAngle += diffAngle;
+        if (xAngle > panMax) {
+          xAngle = 180;
+        }
+      }
+    }
+    //
+    tiltServo.write(yAngle);
+    if (cmd[0] != 'h') {
+      if (tiltUp) {
+        yAngle -= diffAngle;
+        if (yAngle < tiltMin) {
+          yAngle = tiltMin;
+        }
+      } else {
+        yAngle += diffAngle;
+        if (yAngle > tiltMax) {
+          yAngle = tiltMax;
+        }
+      }
+    }
 #ifdef __DEBUG__
     Console.print("cmd0: "); Console.print(cmd[0]);
     Console.print(", cmd1: "); Console.print(cmd[1]);
     Console.print(", cmd2: "); Console.println(cmd[2]);
-    if (yy != yy2 || xx != xx2) {
-      Console.print("yy=");
-      Console.print(yy);
-      Console.print(", xx=");
-      Console.print(xx);
-      Console.println();
-      xx2 = xx;
-      yy2 = yy;
-    }
 #endif
   }
   /*
@@ -289,7 +302,7 @@ void check_joystick( char *cmd) {
 }
 #endif
 
-#ifdef __GOBLE__ 
+#ifdef __GOBLE__
 void check_goble(char *cmd) {
   int joystickX = 0;
   int joystickY = 0;
