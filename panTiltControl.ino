@@ -1,9 +1,9 @@
 #include "GPIOServo.hpp"
 
 // uncomment one to select the way of control
-#define __JOYSTCIK__
+//#define __JOYSTCIK__
 //#define __NUNCHUK__
-//#define __GOBLE__
+#define __GOBLE__
 //
 #ifdef __NUNCHUK__
 #include "Nunchuk.h"
@@ -20,7 +20,7 @@
 #endif
 
 //#define __DEBUG__
-#define __SOFTWARE_SERIAL__
+//#define __SOFTWARE_SERIAL__
 
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
@@ -124,13 +124,15 @@ void loop() {
 #elif defined __GOBLE__
   check_goble(cmd);
 #else
+#error No control method is selected!
 #endif
+
   switch (cmd[0]) {
     case __UPWARD:
-      tiltUp = true;
+      tiltUp = false;
       break;
     case __DOWNWARD:
-      tiltUp = false;
+      tiltUp = true;
       break;
     case __CENTER:
       yAngle = tiltMid;
@@ -139,10 +141,10 @@ void loop() {
 
   switch (cmd[1]) {
     case __RIGHT:
-      panLeft = false;
+      panLeft = true;
       break;
     case __LEFT:
-      panLeft = true;
+      panLeft = false;
       break;
     case __CENTER:
       xAngle = panMid;
@@ -157,8 +159,6 @@ void loop() {
     angle = TRIGGER_OFF;
   }
   fireServo.write(angle);
-  //    panServo.sweep();
-  //    tiltServo.sweep();
   //
   const short angleTimeGap = 20;
   if (cur_time - prev_time >= angleTimeGap) {
@@ -200,13 +200,6 @@ void loop() {
     Console.print(", cmd2: "); Console.println(cmd[2]);
 #endif
   }
-  /*
-    if ( cur_time - prev_reset_time >= 2000 ) {
-      if (xx == panMin || xx == panMax) xx = panMid;
-      if (yy == tiltMin || yy == tiltMax) yy = tiltMid;
-      prev_reset_time = cur_time;
-    }
-  */
 }
 
 #ifdef __NUNCHUK__
@@ -226,8 +219,8 @@ void check_nunchuk(char *cmd) {
     return;
   }
 
-  if (nunchuk_buttonC()) {
-    //Console.println("Pressed button C");
+  if (nunchuk_buttonZ()) {
+    //Console.println("Pressed button Z");
     float pitch_angle = nunchuk_pitch() * 180 / M_PI;
     if (pitch_angle >= -90 && pitch_angle <= 90) {
       joystickY = map(pitch_angle, 60, -90, 255, 0);
@@ -262,8 +255,8 @@ void check_nunchuk(char *cmd) {
   } else  {
     cmd[1] = __HALT;
   }
-  if (nunchuk_buttonZ()) {
-    //Console.println("Pressed button Z");
+  if (nunchuk_buttonC()) {
+    //Console.println("Pressed button C");
     cmd[2] = __FIRE;
   } else {
     cmd[2] = __HALT;
@@ -315,13 +308,11 @@ void check_goble(char *cmd) {
 
   if (joystickY > 190) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
-  } else if (joystickX < 80) {
+  } else if (joystickY < 80) {
     cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else if (Goble.readSwitchUp() == PRESSED) {
-    //cmd = '1';
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
-    //cmd = '2';
     cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else {
     cmd[0] = __HALT;
@@ -329,34 +320,30 @@ void check_goble(char *cmd) {
 
   if (joystickX > 190) {
     cmd[1] = revX ? __LEFT : __RIGHT;
-  } else if (joystickY < 80) {
+  } else if (joystickX < 80) {
     cmd[1] = revX ?   __RIGHT : __LEFT;
   } else if (Goble.readSwitchLeft() == PRESSED) {
-    //cmd = '3';
-    cmd[0] = revX ? __LEFT : __RIGHT;
+    cmd[1] = revX ? __LEFT : __RIGHT;
   } else if (Goble.readSwitchRight() == PRESSED) {
-    //cmd = '4';
-    cmd[0] =  revX ?   __RIGHT : __LEFT;
+    cmd[1] =  revX ?   __RIGHT : __LEFT;
   } else  {
     cmd[1] = __HALT;
   }
 
   if (Goble.readSwitchSelect() == PRESSED) {
-    //cmd = '5';
     revY = !revY;
+    //Console.println("revY "+String(revY));
   } else if (Goble.readSwitchStart() == PRESSED) {
-    //cmd = '6';
     revX = !revX;
+    //Console.println("revX "+String(revX));
   }
 
   if (Goble.readSwitchAction() == PRESSED) {
-    //cmd = '7';
     cmd[0] = __CENTER;
     cmd[1] = __CENTER;
   }
 
   if (Goble.readSwitchMid() == PRESSED) {
-    //cmd = '8';
     cmd[2] = __FIRE;
   } else {
     cmd[2] = __HALT;
