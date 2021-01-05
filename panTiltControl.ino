@@ -11,6 +11,7 @@
 
 #ifdef __GOBLE__
 #include "GoBLE.hpp"
+#define BAUD_RATE 38400
 #endif
 
 #ifdef __JOYSTCIK__
@@ -39,7 +40,7 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #endif
 #endif
 //
-#define BAUD_RATE 38400
+
 
 //
 #define __UPWARD '1'
@@ -50,22 +51,19 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #define __FIRE '8'
 #define __HALT 'h'
 
-
-boolean revX = false;
-boolean revY = false;
-const int panInterval = 5;
 const int panMax = 180;
 const int panMid = 90;
 const int panMin = 0;
-const int tiltInterval = 5;
-const int tiltMax = 140;
-const int tiltMid = 90;
-const int tiltMin = 65;
-
-int yAngle = tiltMid;
-int xAngle = panMid;
 boolean panLeft = true;
+int xAngle = panMid;
+boolean revX = false;
+//
+const int tiltMax = 180;
+const int tiltMid = 90;
+const int tiltMin = 0;
 boolean tiltUp = true;
+int yAngle = tiltMid;
+boolean revY = false;
 //
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
@@ -249,9 +247,9 @@ void check_nunchuk(char *cmd) {
     cmd[0] = __HALT;
   }
   if (joystickX > 190) {
-    cmd[1] = __LEFT;
+    cmd[1] = __RIGHT;
   } else if (joystickX < 50) {
-    cmd[1] = __RIGHT ;
+    cmd[1] = __LEFT ;
   } else  {
     cmd[1] = __HALT;
   }
@@ -309,7 +307,7 @@ void check_goble(char *cmd) {
   if (joystickY > 190) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (joystickY < 80) {
-    cmd[0] = revY ? __DOWNWARD : __UPWARD;
+    cmd[0] = revY ? __DOWNWARD : __UPWARD; 
   } else if (Goble.readSwitchUp() == PRESSED) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
@@ -321,11 +319,11 @@ void check_goble(char *cmd) {
   if (joystickX > 190) {
     cmd[1] = revX ? __LEFT : __RIGHT;
   } else if (joystickX < 80) {
-    cmd[1] = revX ?   __RIGHT : __LEFT;
+    cmd[1] = revX ? __RIGHT : __LEFT;
   } else if (Goble.readSwitchLeft() == PRESSED) {
-    cmd[1] = revX ? __LEFT : __RIGHT;
+    cmd[1] = revX ? __RIGHT : __LEFT; 
   } else if (Goble.readSwitchRight() == PRESSED) {
-    cmd[1] =  revX ?   __RIGHT : __LEFT;
+    cmd[1] =  revX ? __LEFT : __RIGHT;  
   } else  {
     cmd[1] = __HALT;
   }
