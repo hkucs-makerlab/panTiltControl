@@ -58,9 +58,9 @@ boolean panLeft = true;
 int xAngle = panMid;
 boolean revX = false;
 //
-const int tiltMax = 180;
+const int tiltMax = 140;
 const int tiltMid = 90;
-const int tiltMin = 0;
+const int tiltMin = 65;
 boolean tiltUp = true;
 int yAngle = tiltMid;
 boolean revY = false;
