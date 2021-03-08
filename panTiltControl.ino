@@ -115,6 +115,14 @@ void loop() {
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
+  static long idle_timeout = 0;
+  if ((cur_time - idle_timeout) > 60000) {
+    panServo.detach();
+    tiltServo.detach();
+    fireServo.detach();
+    idle_timeout = cur_time;
+  }
+
 #ifdef __NUNCHUK__
   check_nunchuk(cmd);
 #elif defined __JOYSTCIK__
@@ -124,6 +132,10 @@ void loop() {
 #else
 #error No control method is selected!
 #endif
+
+  if (cmd[0] != __HALT) tiltServo.attach();
+  if (cmd[1] != __HALT) panServo.attach();
+  if (cmd[2] != __HALT) fireServo.attach();
 
   switch (cmd[0]) {
     case __UPWARD:
@@ -307,7 +319,7 @@ void check_goble(char *cmd) {
   if (joystickY > 190) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (joystickY < 80) {
-    cmd[0] = revY ? __DOWNWARD : __UPWARD; 
+    cmd[0] = revY ? __DOWNWARD : __UPWARD;
   } else if (Goble.readSwitchUp() == PRESSED) {
     cmd[0] = revY ? __UPWARD : __DOWNWARD;
   } else if (Goble.readSwitchDown() == PRESSED) {
@@ -321,9 +333,9 @@ void check_goble(char *cmd) {
   } else if (joystickX < 80) {
     cmd[1] = revX ? __RIGHT : __LEFT;
   } else if (Goble.readSwitchLeft() == PRESSED) {
-    cmd[1] = revX ? __RIGHT : __LEFT; 
+    cmd[1] = revX ? __RIGHT : __LEFT;
   } else if (Goble.readSwitchRight() == PRESSED) {
-    cmd[1] =  revX ? __LEFT : __RIGHT;  
+    cmd[1] =  revX ? __LEFT : __RIGHT;
   } else  {
     cmd[1] = __HALT;
   }

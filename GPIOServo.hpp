@@ -11,44 +11,80 @@ class GPIOservo {
   private:
 
   public:
-    GPIOservo(): angle(0), rev(false), attached(false), pinIndex(-1) {
+    GPIOservo(): angle(90), rev(false), attached(false), pinIndex(-1) {
 
     }
     GPIOservo(int pinIndex ): GPIOservo() {
       this->pinIndex = pinIndex;
 #if defined(ESP32)
-      // calling in constructor not working in AVR mcu
-      this->attach();
+      this->attach(); // calling in constructor not working in AVR mcu
 #endif
     }
+
+    GPIOservo(int pinIndex, int min, int max ): GPIOservo(pinIndex) {
+      gpioServoMin = min;
+      gpioServoMax = max;
+    }
+
+    bool attach(uint8_t pinIndex) {
+      this->pinIndex = pinIndex;
+      return attach();
+    }
+
+    bool attach(int minPulse, int maxPulse ) {
+      this->gpioServoMin = minPulse;
+      this->gpioServoMax = maxPulse;
+      return attach();
+    }
+
+    bool attach(uint8_t pinIndex, int minPulse, int maxPulse ) {
+      this->pinIndex = pinIndex;
+      this->gpioServoMin = minPulse;
+      this->gpioServoMax = maxPulse;
+      return attach();
+    }
+
     bool attach() {
       if (pinIndex < 0) return false;
       if (attached) {
-        gpioServos.detach();
+        return attached;
       }
       gpioServos.attach(pinIndex, gpioServoMin, gpioServoMax);
       gpioServos.write(angle);
       prevTime = millis();
       return attached = true;
     }
-    
-    bool attach(uint8_t pinIndex) {
-      this->pinIndex = pinIndex;
-      return attach();
+
+    void detach() {
+      if (attached) {
+        gpioServos.detach();
+        attached=false;
+      }
     }
 
     void write(int angle) {
       if (!attached) {
-        Serial.println("failed, not attach to a pin!");
         return;
       }
       gpioServos.write(angle);
       if (angle != this->angle) this->angle = angle;
     }
 
+    void writeMicroseconds(long us) {
+      if (!attached) {
+        return;
+      }
+      int deg = map(us, gpioServoMin, gpioServoMax, 0, 180);
+      if (deg != this->angle) this->angle = deg;
+      gpioServos.writeMicroseconds(us);
+    }
+
+    int getAngle() {
+      return angle;
+    }
+
     bool move(int targetAngle) {
       if (angle == targetAngle)  {
-        //Serial.println(String("angle: ") + angle + String(", targetAngle: ") + targetAngle);
         return true;
       }
       currentTime = millis();
@@ -56,7 +92,6 @@ class GPIOservo {
         long diffTime = currentTime - prevTime;
         int diffAngle = diffTime / angleTimeGap;
         prevTime = currentTime;
-        //Serial.println(String("angle: ") + angle + String(", targetAngle: ") + targetAngle + String(", diff angle: ") + diffAngle);
         this->write(angle);
         if (targetAngle < angle) {
           angle -= diffAngle;
@@ -74,7 +109,6 @@ class GPIOservo {
       if (currentTime - prevTime >= angleTimeGap) {
         long diffTime = currentTime - prevTime;
         int diffAngle = diffTime / angleTimeGap;
-        //Serial.println(String("angle: ") + angle + String(" ,diff time: ") + diffTime + String(", diff angle: ") + diffAngle);
         prevTime = currentTime;
         this->write(angle);
         if (rev) {
@@ -92,16 +126,12 @@ class GPIOservo {
         } //rev
       }
     }
-  private:
 
-    //    const uint8_t servoGpioPins[11] = {
-    //      4, 5, 12, 13, 14,
-    //      15, 25, 26, 27, 32,
-    //      33
-    //    };
+  private:
     int pinIndex;
-    const int gpioServoMin = 500;
-    const int gpioServoMax = 2600;
+    int gpioServoMin = 550;
+    int gpioServoMax = 2550;
+    //const int gpioServoMax = 2350;
     Servo gpioServos;
     //
     const short angleTimeGap = 5;
