@@ -22,6 +22,7 @@
 
 //#define __DEBUG__
 //#define __SOFTWARE_SERIAL__
+#define __CHECK_IDLE_TIME__
 
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
@@ -115,6 +116,8 @@ void loop() {
   int angle = TRIGGER_OFF;
 
   cur_time = millis();
+
+#ifdef __CHECK_IDLE_TIME__  
   static long idle_timeout = 0;
   if ((cur_time - idle_timeout) > 60000) {
     panServo.detach();
@@ -122,6 +125,7 @@ void loop() {
     fireServo.detach();
     idle_timeout = cur_time;
   }
+#endif  
 
 #ifdef __NUNCHUK__
   check_nunchuk(cmd);
@@ -133,9 +137,11 @@ void loop() {
 #error No control method is selected!
 #endif
 
+#ifdef __CHECK_IDLE_TIME__
   if (cmd[0] != __HALT) tiltServo.attach();
   if (cmd[1] != __HALT) panServo.attach();
   if (cmd[2] != __HALT) fireServo.attach();
+#endif  
 
   switch (cmd[0]) {
     case __UPWARD:
