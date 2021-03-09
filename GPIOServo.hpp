@@ -58,7 +58,7 @@ class GPIOservo {
     void detach() {
       if (attached) {
         gpioServos.detach();
-        attached=false;
+        attached = false;
       }
     }
 
@@ -90,14 +90,13 @@ class GPIOservo {
       currentTime = millis();
       if (currentTime - prevTime >= angleTimeGap) {
         long diffTime = currentTime - prevTime;
-        int diffAngle = diffTime / angleTimeGap;
         prevTime = currentTime;
         this->write(angle);
         if (targetAngle < angle) {
-          angle -= diffAngle;
+          angle--;
           if (angle < 0) angle = 0;
         } else {
-          angle += diffAngle;
+          angle++;
           if (angle > 180) angle = 180;
         }
       }
@@ -110,7 +109,7 @@ class GPIOservo {
         long diffTime = currentTime - prevTime;
         int diffAngle = diffTime / angleTimeGap;
         prevTime = currentTime;
-        this->write(angle);
+        gpioServos.write(angle);
         if (rev) {
           angle -= diffAngle;
           if (angle < 0) {
@@ -134,7 +133,7 @@ class GPIOservo {
     //const int gpioServoMax = 2350;
     Servo gpioServos;
     //
-    const short angleTimeGap = 5;
+    const short angleTimeGap = 20;
     int angle;
     bool rev;
     long prevTime, currentTime;
