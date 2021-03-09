@@ -51,32 +51,29 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #define __CENTER '7'
 #define __FIRE '8'
 #define __HALT 'h'
-
-const int panMax = 180;
-const int panMid = 90;
-const int panMin = 0;
-boolean panLeft = true;
-int xAngle = panMid;
-boolean revX = false;
-//
-const int tiltMax = 140;
-const int tiltMid = 90;
-const int tiltMin = 65;
-boolean tiltUp = true;
-int yAngle = tiltMid;
-boolean revY = false;
 //
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
 #define FIRE_SERVO_PIN    2
-
-//
 #define PAN_SERVO_PIN     3
 #define TILT_SERVO_PIN    4
 
 GPIOservo fireServo(FIRE_SERVO_PIN); // to hit an end stop switch
 GPIOservo panServo(PAN_SERVO_PIN);
 GPIOservo tiltServo(TILT_SERVO_PIN);
+
+const int panMax = 180;
+const int panMid = 90;
+const int panMin = 0;
+//
+const int tiltMax = 140;
+const int tiltMid = 90;
+const int tiltMin = 65;
+
+#ifdef __GOBLE__
+boolean revX = false;
+boolean revY = false;
+#endif
 
 void setup() {
 #ifdef __GOBLE__
@@ -87,11 +84,13 @@ void setup() {
   Console.println("in debugging mode");
 #endif
 
-  fireServo.attach(FIRE_SERVO_PIN);
+  fireServo.attach();
   fireServo.write(TRIGGER_OFF);
-  panServo.attach(PAN_SERVO_PIN);
+  //
+  panServo.attach();
   panServo.write(panMid);
-  tiltServo.attach(TILT_SERVO_PIN);
+  //
+  tiltServo.attach();
   tiltServo.write(tiltMid);
 
 #ifdef __JOYSTCIK__
@@ -109,7 +108,7 @@ void setup() {
 }
 
 void loop() {
-  static unsigned long prev_time = 0;
+  //static unsigned long prev_time = 0;
   static unsigned long prev_fire_time = 0;
   unsigned long cur_time;
   static char cmd[3] = {__CENTER, __CENTER, __HALT};
@@ -117,7 +116,7 @@ void loop() {
 
   cur_time = millis();
 
-#ifdef __CHECK_IDLE_TIME__  
+#ifdef __CHECK_IDLE_TIME__
   static long idle_timeout = 0;
   if ((cur_time - idle_timeout) > 60000) {
     panServo.detach();
@@ -125,7 +124,7 @@ void loop() {
     fireServo.detach();
     idle_timeout = cur_time;
   }
-#endif  
+#endif
 
 #ifdef __NUNCHUK__
   check_nunchuk(cmd);
@@ -141,29 +140,29 @@ void loop() {
   if (cmd[0] != __HALT) tiltServo.attach();
   if (cmd[1] != __HALT) panServo.attach();
   if (cmd[2] != __HALT) fireServo.attach();
-#endif  
+#endif
 
   switch (cmd[0]) {
     case __UPWARD:
-      tiltUp = false;
+      tiltServo.move(tiltMin);
       break;
     case __DOWNWARD:
-      tiltUp = true;
+      tiltServo.move(tiltMax);
       break;
     case __CENTER:
-      yAngle = tiltMid;
+      tiltServo.write(tiltMid);
       break;
   }
 
   switch (cmd[1]) {
     case __RIGHT:
-      panLeft = true;
+      panServo.move(panMax);
       break;
     case __LEFT:
-      panLeft = false;
+      panServo.move(panMin);
       break;
     case __CENTER:
-      xAngle = panMid;
+      panServo.write(panMid);
       break;
   }
   //
@@ -176,46 +175,11 @@ void loop() {
   }
   fireServo.write(angle);
   //
-  const short angleTimeGap = 20;
-  if (cur_time - prev_time >= angleTimeGap) {
-    long diffTime = cur_time - prev_time;
-    int diffAngle = diffTime / angleTimeGap;
-    prev_time = cur_time;
-    panServo.write(xAngle);
-    if (cmd[1] != 'h') {
-      if (panLeft) {
-        xAngle -= diffAngle;
-        if (xAngle < panMin) {
-          xAngle = 0;
-        }
-      } else {
-        xAngle += diffAngle;
-        if (xAngle > panMax) {
-          xAngle = 180;
-        }
-      }
-    }
-    //
-    tiltServo.write(yAngle);
-    if (cmd[0] != 'h') {
-      if (tiltUp) {
-        yAngle -= diffAngle;
-        if (yAngle < tiltMin) {
-          yAngle = tiltMin;
-        }
-      } else {
-        yAngle += diffAngle;
-        if (yAngle > tiltMax) {
-          yAngle = tiltMax;
-        }
-      }
-    }
 #ifdef __DEBUG__
-    Console.print("cmd0: "); Console.print(cmd[0]);
-    Console.print(", cmd1: "); Console.print(cmd[1]);
-    Console.print(", cmd2: "); Console.println(cmd[2]);
+  Console.print("cmd0: "); Console.print(cmd[0]);
+  Console.print(", cmd1: "); Console.print(cmd[1]);
+  Console.print(", cmd2: "); Console.println(cmd[2]);
 #endif
-  }
 }
 
 #ifdef __NUNCHUK__
