@@ -1,6 +1,6 @@
 #include "GPIOServo.hpp"
 
-#define __DEBUG__
+//#define __DEBUG__
 
 // uncomment one to select the way of control
 //#define __JOYSTCIK__
@@ -9,22 +9,24 @@
 //
 #ifdef __NUNCHUK__
 #include "Nunchuk.h"
-//#define __NUNCHUK__MOTION
+//#define __NUNCHUK__MOTION // use Z button for motion control or laser target pointer
 #endif
 
 #ifdef __GOBLE__
 #include "GoBLE.hpp"
-#define BAUD_RATE 115200
 //#define __SOFTWARE_SERIAL__
 #endif
+#define BAUD_RATE 115200
 
 #ifdef __JOYSTCIK__
 #define JOYSTICK_X_PIN       A4
 #define JOYSTICK_Y_PIN       A5
 #define JOYSTICK_SWITCH_PIN  9
 #endif
-
-#define __CHECK_IDLE_TIME__
+#define FIRE_SERVO_PIN    2
+#define PAN_SERVO_PIN     3
+#define TILT_SERVO_PIN    4
+#define LASER_POINT_PIN   6
 
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
@@ -43,8 +45,7 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #endif //
 #endif // __SOFTWARE_SERIAL__
 //
-
-
+#define __CHECK_IDLE_TIME__
 //
 #define __UPWARD '1'
 #define __DOWNWARD '2'
@@ -56,10 +57,6 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 //
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
-#define FIRE_SERVO_PIN    2
-#define PAN_SERVO_PIN     3
-#define TILT_SERVO_PIN    4
-#define LASER_POINT_PIN   6
 
 GPIOservo fireServo(FIRE_SERVO_PIN); // to hit an end stop switch
 GPIOservo panServo(PAN_SERVO_PIN);
@@ -85,6 +82,8 @@ void setup() {
 
 #if defined(__DEBUG__) && defined(__SOFTWARE_SERIAL__) && defined(__AVR__)
   Console.begin(115200);
+#else
+  Console.begin(BAUD_RATE);
 #endif
 
   fireServo.attach();
@@ -204,20 +203,16 @@ void check_nunchuk(char *cmd) {
   int joystickX, joystickY, switchState;
   String msg;
   long now = millis();
-  if (now - 100 > last_nunchuk_time) {
+  if (now - 200 > last_nunchuk_time) {
     if (!nunchuk_read()) {
       return;
     }
-
-    //nunchuk_print();
     if (nunchuk_buttonC() && nunchuk_buttonZ()) {
       cmd[0] = __CENTER;
       cmd[1] = __CENTER;
       cmd[2] = __HALT;
       return;
     }
-
-
     if (nunchuk_buttonZ()) {
       //Console.println("Pressed button Z");
 #ifdef __NUNCHUK__MOTION
@@ -342,11 +337,11 @@ void check_goble(char *cmd) {
   }
 
   if (Goble.readSwitchSelect() == PRESSED) {
-    revY = !revY;
-    //Console.println("revY "+String(revY));
+    int value = digitalRead(LASER_POINT_PIN);
+    digitalWrite(LASER_POINT_PIN, !value );
+    //revY = !revY;
   } else if (Goble.readSwitchStart() == PRESSED) {
-    revX = !revX;
-    //Console.println("revX "+String(revX));
+    //revX = !revX;
   }
 
   if (Goble.readSwitchAction() == PRESSED) {
@@ -358,10 +353,6 @@ void check_goble(char *cmd) {
     cmd[2] = __FIRE;
   } else {
     cmd[2] = __HALT;
-  }
-  if (Goble.readSwitchUp() == PRESSED) {
-    int value = digitalRead(LASER_POINT_PIN);
-    digitalWrite(LASER_POINT_PIN, !value );
   }
 }
 #endif
