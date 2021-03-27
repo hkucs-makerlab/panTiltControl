@@ -151,10 +151,10 @@ void loop() {
 
   switch (cmd[0]) {
     case __UPWARD:
-      tiltServo.move(tiltMin);
+      tiltServo.move(tiltMax);
       break;
     case __DOWNWARD:
-      tiltServo.move(tiltMax);
+      tiltServo.move(tiltMin);
       break;
     case __CENTER:
       tiltServo.write(tiltMid);
@@ -163,10 +163,10 @@ void loop() {
 
   switch (cmd[1]) {
     case __RIGHT:
-      panServo.move(panMax);
+      panServo.move(panMin);
       break;
     case __LEFT:
-      panServo.move(panMin);
+      panServo.move(panMax);
       break;
     case __CENTER:
       panServo.write(panMid);
