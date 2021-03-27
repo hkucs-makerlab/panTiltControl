@@ -1,27 +1,29 @@
 #include "GPIOServo.hpp"
 
+//#define __DEBUG__
+
 // uncomment one to select the way of control
 //#define __JOYSTCIK__
-//#define __NUNCHUK__
-#define __GOBLE__
+#define __NUNCHUK__
+//#define __GOBLE__
 //
 #ifdef __NUNCHUK__
 #include "Nunchuk.h"
+//#define __NUNCHUK__MOTION
 #endif
 
 #ifdef __GOBLE__
 #include "GoBLE.hpp"
 #define BAUD_RATE 38400
+//#define __SOFTWARE_SERIAL__
 #endif
 
 #ifdef __JOYSTCIK__
-#define JOYSTICK_X_PIN       A0
-#define JOYSTICK_Y_PIN       A1
+#define JOYSTICK_X_PIN       A4
+#define JOYSTICK_Y_PIN       A5
 #define JOYSTICK_SWITCH_PIN  9
 #endif
 
-//#define __DEBUG__
-//#define __SOFTWARE_SERIAL__
 #define __CHECK_IDLE_TIME__
 
 #ifdef __SOFTWARE_SERIAL__
@@ -32,14 +34,14 @@
 SoftwareSerial BlueTooth(BT_RX_PIN, BT_TX_PIN);
 #ifdef __GOBLE__
 _GoBLE<SoftwareSerial, HardwareSerial> Goble(BlueTooth, Console);
-#endif
+#endif //
 #else
 #define Console Serial
 #define BlueTooth Serial
 #ifdef __GOBLE__
 _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
-#endif
-#endif
+#endif //
+#endif // __SOFTWARE_SERIAL__
 //
 
 
@@ -57,6 +59,7 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #define FIRE_SERVO_PIN    2
 #define PAN_SERVO_PIN     3
 #define TILT_SERVO_PIN    4
+#define LASER_POINT_PIN   6
 
 GPIOservo fireServo(FIRE_SERVO_PIN); // to hit an end stop switch
 GPIOservo panServo(PAN_SERVO_PIN);
@@ -99,6 +102,10 @@ void setup() {
 
 #ifdef __NUNCHUK__
   nunchuk_init();
+#ifndef __NUNCHUK__MOTION
+  pinMode(LASER_POINT_PIN, OUTPUT);
+  digitalWrite(LASER_POINT_PIN, LOW);
+#endif
 #endif
 
 #ifdef __DEBUG__
@@ -176,101 +183,124 @@ void loop() {
   fireServo.write(angle);
   //
 #ifdef __DEBUG__
-  Console.print("cmd0: "); Console.print(cmd[0]);
-  Console.print(", cmd1: "); Console.print(cmd[1]);
-  Console.print(", cmd2: "); Console.println(cmd[2]);
+  if (1) {
+    static long last_debug_time = 0;
+    long now = millis();
+    if (now - 1000 > last_debug_time) {
+      Console.print("cmd0: "); Console.print(cmd[0]);
+      Console.print(", cmd1: "); Console.print(cmd[1]);
+      Console.print(", cmd2: "); Console.println(cmd[2]);
+      last_debug_time = now;
+    }
+  }
 #endif
 }
 
 #ifdef __NUNCHUK__
 void check_nunchuk(char *cmd) {
+  static long last_nunchuk_time = 0;
+
   int joystickX, joystickY, switchState;
   String msg;
-
-  if (!nunchuk_read()) {
-    return;
-  }
-
-  //nunchuk_print();
-  if (nunchuk_buttonC() && nunchuk_buttonZ()) {
-    cmd[0] = __CENTER;
-    cmd[1] = __CENTER;
-    cmd[2] = __HALT;
-    return;
-  }
-
-  if (nunchuk_buttonZ()) {
-    //Console.println("Pressed button Z");
-    float pitch_angle = nunchuk_pitch() * 180 / M_PI;
-    if (pitch_angle >= -90 && pitch_angle <= 90) {
-      joystickY = map(pitch_angle, 60, -90, 255, 0);
-    } else {
-      joystickY = 128;
+  long now = millis();
+  if (now - 100 > last_nunchuk_time) {
+    if (!nunchuk_read()) {
+      return;
     }
-    float roll_angle = nunchuk_roll() * 180 / M_PI;
-    if (roll_angle >= -90 && roll_angle <= 90) {
-      joystickX = map(roll_angle, -90, 90, 0, 255);
-    } else {
-      joystickY = 128;
+
+    //nunchuk_print();
+    if (nunchuk_buttonC() && nunchuk_buttonZ()) {
+      cmd[0] = __CENTER;
+      cmd[1] = __CENTER;
+      cmd[2] = __HALT;
+      return;
     }
-    //msg = "Pitch: " + String(pitch_angle) + ", Roll: " + String(roll_angle);
-    //Console.println(msg);
-  } else {
-    joystickX = map(nunchuk_joystickX(), -126, 127, 0, 255);
-    joystickY = map(nunchuk_joystickY(), -126, 127, 0, 255);
-  }
-  //msg = "X: " + String(joystickX) + " ,Y:" + String(joystickY);
-  //Console.println(msg);
-  if (joystickY > 210) {
-    cmd[0] = __UPWARD ;
-  } else if (joystickY < 90) {
-    cmd[0] = __DOWNWARD;
-  } else {
-    cmd[0] = __HALT;
-  }
-  if (joystickX > 190) {
-    cmd[1] = __RIGHT;
-  } else if (joystickX < 50) {
-    cmd[1] = __LEFT ;
-  } else  {
-    cmd[1] = __HALT;
-  }
-  if (nunchuk_buttonC()) {
-    //Console.println("Pressed button C");
-    cmd[2] = __FIRE;
-  } else {
-    cmd[2] = __HALT;
+
+
+    if (nunchuk_buttonZ()) {
+      //Console.println("Pressed button Z");
+#ifdef __NUNCHUK__MOTION
+      float pitch_angle = nunchuk_pitch() * 180 / M_PI;
+      if (pitch_angle >= -90 && pitch_angle <= 90) {
+        joystickY = map(pitch_angle, 60, -90, 255, 0);
+      } else {
+        joystickY = 128;
+      }
+      float roll_angle = nunchuk_roll() * 180 / M_PI;
+      if (roll_angle >= -90 && roll_angle <= 90) {
+        joystickX = map(roll_angle, -90, 90, 0, 255);
+      } else {
+        joystickY = 128;
+      }
+      //Console.println("Pitch: " + String(pitch_angle) + ", Roll: " + String(roll_angle));
+#else //__NUNCHUK__MOTION
+      static long last_laser_time = 0;
+      if (now - 500 > last_laser_time) {
+        int value = digitalRead(LASER_POINT_PIN);
+        digitalWrite(LASER_POINT_PIN, !value );
+        last_laser_time = now;
+      }
+#endif  //__NUNCHUK__MOTION
+    } else {
+      joystickX = map(nunchuk_joystickX(), -126, 127, 0, 255);
+      joystickY = map(nunchuk_joystickY(), -126, 127, 0, 255);
+    }
+
+    if (joystickY > 210) {
+      cmd[0] = __UPWARD ;
+    } else if (joystickY < 90) {
+      cmd[0] = __DOWNWARD;
+    } else {
+      cmd[0] = __HALT;
+    }
+    if (joystickX > 190) {
+      cmd[1] = __RIGHT;
+    } else if (joystickX < 50) {
+      cmd[1] = __LEFT ;
+    } else  {
+      cmd[1] = __HALT;
+    }
+    if (nunchuk_buttonC()) {
+      cmd[2] = __FIRE;
+    } else {
+      cmd[2] = __HALT;
+    }
+    last_nunchuk_time = now;
   }
 }
 #endif
 
 #ifdef __JOYSTCIK__
 void check_joystick( char *cmd) {
+  static long last_joystick_time = 0;
   int tilt, pan, fire;
+  long now = millis();
+  if (now - 200 > last_joystick_time) {
+    pan = map(analogRead(JOYSTICK_X_PIN), 0, 1023, 0, 255);
+    if (pan > 190) {
+      cmd[0] =  __UPWARD;
+    } else if (pan < 50) {
+      cmd[0] = __DOWNWARD ;
+    } else {
+      cmd[0] = __HALT;
+    }
 
-  pan = map(analogRead(JOYSTICK_X_PIN), 0, 1023, 0, 255);
-  if (pan > 190) {
-    cmd[0] =  __UPWARD;
-  } else if (pan < 50) {
-    cmd[0] = __DOWNWARD ;
-  } else {
-    cmd[0] = __HALT;
-  }
+    tilt = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
+    if (tilt > 190) {
+      cmd[1] = __LEFT;
+    } else if (tilt < 50) {
+      cmd[1] = __RIGHT ;
+    } else  {
+      cmd[1] = __HALT;
+    }
 
-  tilt = map(analogRead(JOYSTICK_Y_PIN), 0, 1023, 0, 255);
-  if (tilt > 190) {
-    cmd[1] = __LEFT;
-  } else if (tilt < 50) {
-    cmd[1] = __RIGHT ;
-  } else  {
-    cmd[1] = __HALT;
-  }
-
-  fire = digitalRead(JOYSTICK_SWITCH_PIN);
-  if (fire == 0) {
-    cmd[2] = __FIRE;
-  } else {
-    cmd[2] = __HALT;
+    fire = digitalRead(JOYSTICK_SWITCH_PIN);
+    if (fire == 0) {
+      cmd[2] = __FIRE;
+    } else {
+      cmd[2] = __HALT;
+    }
+    last_joystick_time = now;
   }
 }
 #endif
