@@ -1,6 +1,6 @@
 #include "GPIOServo.hpp"
 
-//#define __DEBUG__
+#define __DEBUG__
 
 // uncomment one to select the way of control
 //#define __JOYSTCIK__
@@ -14,7 +14,7 @@
 
 #ifdef __GOBLE__
 #include "GoBLE.hpp"
-#define BAUD_RATE 38400
+#define BAUD_RATE 115200
 //#define __SOFTWARE_SERIAL__
 #endif
 
@@ -82,9 +82,9 @@ void setup() {
 #ifdef __GOBLE__
   Goble.begin(BAUD_RATE);
 #endif
-#ifdef __DEBUG__
+
+#if defined(__DEBUG__) && defined(__SOFTWARE_SERIAL__) && defined(__AVR__)
   Console.begin(115200);
-  Console.println("in debugging mode");
 #endif
 
   fireServo.attach();
@@ -95,6 +95,9 @@ void setup() {
   //
   tiltServo.attach();
   tiltServo.write(tiltMid);
+  //
+  pinMode(LASER_POINT_PIN, OUTPUT);
+  digitalWrite(LASER_POINT_PIN, LOW);
 
 #ifdef __JOYSTCIK__
   pinMode(JOYSTICK_SWITCH_PIN, INPUT_PULLUP);
@@ -102,14 +105,11 @@ void setup() {
 
 #ifdef __NUNCHUK__
   nunchuk_init();
-#ifndef __NUNCHUK__MOTION
-  pinMode(LASER_POINT_PIN, OUTPUT);
-  digitalWrite(LASER_POINT_PIN, LOW);
-#endif
 #endif
 
 #ifdef __DEBUG__
   Console.println("console started");
+  Console.println("in debugging mode");
 #endif
 
 }
@@ -129,6 +129,7 @@ void loop() {
     panServo.detach();
     tiltServo.detach();
     fireServo.detach();
+    digitalWrite(LASER_POINT_PIN, LOW);
     idle_timeout = cur_time;
   }
 #endif
@@ -357,6 +358,10 @@ void check_goble(char *cmd) {
     cmd[2] = __FIRE;
   } else {
     cmd[2] = __HALT;
+  }
+  if (Goble.readSwitchUp() == PRESSED) {
+    int value = digitalRead(LASER_POINT_PIN);
+    digitalWrite(LASER_POINT_PIN, !value );
   }
 }
 #endif
