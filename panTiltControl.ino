@@ -1,11 +1,14 @@
 #include "GPIOServo.hpp"
+#include "Buzzer.hpp"
 
 //#define __DEBUG__
 
 // uncomment one to select the way of control
 //#define __JOYSTCIK__
-#define __NUNCHUK__
+//#define __NUNCHUK__
 //#define __GOBLE__
+#define __PS2_GAMEPAD__
+
 //
 #ifdef __NUNCHUK__
 #include "Nunchuk.h"
@@ -18,15 +21,24 @@
 #endif
 #define BAUD_RATE 115200
 
+// I/O pins
+#define FIRE_SERVO_PIN    2
+#define PAN_SERVO_PIN     3
+#define TILT_SERVO_PIN    4
+#define LASER_POINT_PIN   6
+#define BUZZER_PIN        7
 #ifdef __JOYSTCIK__
 #define JOYSTICK_X_PIN       A4
 #define JOYSTICK_Y_PIN       A5
 #define JOYSTICK_SWITCH_PIN  9
 #endif
-#define FIRE_SERVO_PIN    2
-#define PAN_SERVO_PIN     3
-#define TILT_SERVO_PIN    4
-#define LASER_POINT_PIN   6
+#ifdef __PS2_GAMEPAD__
+#define PS2_ATT 10  // cs
+#define PS2_CMD 11  // mosi
+#define PS2_DAT 12  // miso
+#define PS2_CLK 13  // sck
+#endif // __PS2_GAMEPAD__
+
 
 #ifdef __SOFTWARE_SERIAL__
 #include <SoftwareSerial.h>
@@ -58,6 +70,19 @@ _GoBLE<HardwareSerial, HardwareSerial> Goble(BlueTooth, Console);
 #define TRIGGER_OFF 40
 #define TRIGGER_ON  0
 
+#ifdef __PS2_GAMEPAD__
+#include "PS2X_lib.h" //reference: http://www.billporter.info/
+const int RUMBLE = true;
+const int PRESSURES = false;
+// gamepad variables
+int gamepad_error;
+byte gamepad_type;
+byte gamepad_vibrate;
+PS2X ps2x;
+#endif //__PS2_GAMEPAD__
+
+Buzzer buzzer(BUZZER_PIN);
+
 GPIOservo fireServo(FIRE_SERVO_PIN); // to hit an end stop switch
 GPIOservo panServo(PAN_SERVO_PIN);
 GPIOservo tiltServo(TILT_SERVO_PIN);
@@ -84,6 +109,10 @@ void setup() {
   Console.begin(115200);
 #else
   Console.begin(BAUD_RATE);
+#endif
+
+#ifdef __PS2_GAMEPAD__
+  init_input_ps2();
 #endif
 
   fireServo.attach();
@@ -139,8 +168,10 @@ void loop() {
   check_joystick(cmd);
 #elif defined __GOBLE__
   check_goble(cmd);
+#elif defined __PS2_GAMEPAD__
+  check_ps2_gamepad(cmd);
 #else
-#error No control method is selected!
+#error "No control method defined!"
 #endif
 
 #ifdef __CHECK_IDLE_TIME__
@@ -195,6 +226,95 @@ void loop() {
   }
 #endif
 }
+
+
+#ifdef __PS2_GAMEPAD__
+void init_input_ps2()
+{
+  for (int i = 0; i < 3; i++)
+  {
+    gamepad_error = ps2x.config_gamepad(PS2_CLK, PS2_CMD, PS2_ATT, PS2_DAT, true, true);
+    if (gamepad_error == 0)
+    {
+      Console.println("Found Controller, configured successful;\n");
+      break;
+    }
+    delay(1000);
+  }
+  if (gamepad_error == 1)
+  {
+    Console.print("No PS2 controller found: ");
+    Console.println(gamepad_error);
+    aborted();
+  }
+  else if (gamepad_error == 2)
+  {
+    Console.print("PS2 Controller found but not accepting commands: ");
+    Console.println(gamepad_error);
+    aborted();
+  }
+
+  //verify the gamepad type
+  gamepad_type = ps2x.readType();
+  if (gamepad_type == 0)
+    Console.println("Unknown PS2 Controller type found");
+  else if (gamepad_type == 1)
+    Console.println("DualShock Controller found");
+  else if (gamepad_type == 2)
+    Console.println("GuitarHero Controller found");
+  else if (gamepad_type == 3)
+    Console.println("Wireless Sony DualShock Controller found");
+
+  //turn off gamepad vibration
+  gamepad_vibrate = 0;
+}
+
+void check_ps2_gamepad(char *cmd) {
+  static long last_ps2_gamepad_time = 0;
+
+  int joystickX, joystickY;
+  long now = millis();
+  if (now - 100 > last_ps2_gamepad_time) {
+    ps2x.read_gamepad(false, gamepad_vibrate);
+    joystickX = ps2x.Analog(PSS_LX);
+    joystickY = ps2x.Analog(PSS_LY);
+#ifdef __DEBUG__    
+    Console.println("joystickY: " + String(joystickY) + ", joystickX: " + String(joystickX));
+#endif
+    if (joystickY > 210) {
+      cmd[0] = __UPWARD ;
+    } else if (joystickY < 90) {
+      cmd[0] = __DOWNWARD;
+    } else {
+      cmd[0] = __HALT;
+    }
+    
+    if (joystickX > 190) {
+      cmd[1] = __RIGHT;
+    } else if (joystickX < 50) {
+      cmd[1] = __LEFT ;
+    } else  {
+      cmd[1] = __HALT;
+    }
+    
+    if (ps2x.Button(PSB_L1)) {
+      static long last_laser_time = 0;
+      if (now - 500 > last_laser_time) {
+        int value = digitalRead(LASER_POINT_PIN);
+        digitalWrite(LASER_POINT_PIN, !value );
+        last_laser_time = now;
+      }
+    }
+    
+    if (ps2x.Button(PSB_L2)) {
+      cmd[2] = __FIRE;
+    } else {
+      cmd[2] = __HALT;
+    }
+    last_ps2_gamepad_time = now;
+  }
+}
+#endif //__PS2_GAMEPAD__
 
 #ifdef __NUNCHUK__
 void check_nunchuk(char *cmd) {
@@ -356,3 +476,11 @@ void check_goble(char *cmd) {
   }
 }
 #endif
+
+void aborted()
+{
+  Console.println("Program aborted!");
+  buzzer.beepError();
+  while (1)
+    ;
+}
