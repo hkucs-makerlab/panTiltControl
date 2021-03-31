@@ -139,7 +139,7 @@ void setup() {
   Console.println("console started");
   Console.println("in debugging mode");
 #endif
-
+  buzzer.beepShort();
 }
 
 void loop() {
@@ -214,7 +214,7 @@ void loop() {
   fireServo.write(angle);
   //
 #ifdef __DEBUG__
-  if (1) {
+  if (0) {
     static long last_debug_time = 0;
     long now = millis();
     if (now - 1000 > last_debug_time) {
@@ -272,44 +272,60 @@ void init_input_ps2()
 void check_ps2_gamepad(char *cmd) {
   static long last_ps2_gamepad_time = 0;
 
-  int joystickX, joystickY;
+  int joystickX1, joystickY1;
+  int joystickX2, joystickY2;
   long now = millis();
-  if (now - 100 > last_ps2_gamepad_time) {
+  if (now - 20 > last_ps2_gamepad_time) {
     ps2x.read_gamepad(false, gamepad_vibrate);
-    joystickX = ps2x.Analog(PSS_LX);
-    joystickY = ps2x.Analog(PSS_LY);
-#ifdef __DEBUG__    
+    joystickX1 = ps2x.Analog(PSS_LX);
+    joystickY1 = ps2x.Analog(PSS_LY);
+    joystickX2 = ps2x.Analog(PSS_RX);
+    joystickY2 = ps2x.Analog(PSS_RY);
+#ifdef __DEBUG__
     Console.println("joystickY: " + String(joystickY) + ", joystickX: " + String(joystickX));
 #endif
-    if (joystickY > 210) {
+    if (joystickY1 > 210 || joystickY2 > 210 ) {
       cmd[0] = __UPWARD ;
-    } else if (joystickY < 90) {
+    } else if (joystickY1 < 90 || joystickY2 < 90) {
       cmd[0] = __DOWNWARD;
     } else {
       cmd[0] = __HALT;
     }
-    
-    if (joystickX > 190) {
+
+    if (joystickX1 > 190 || joystickX2 > 190) {
       cmd[1] = __RIGHT;
-    } else if (joystickX < 50) {
+    } else if (joystickX1 < 50 || joystickX2 < 50) {
       cmd[1] = __LEFT ;
     } else  {
       cmd[1] = __HALT;
     }
-    
-    if (ps2x.Button(PSB_L1)) {
+
+    if (ps2x.Button(PSB_L1) || ps2x.Button(PSB_R1)) {
       static long last_laser_time = 0;
       if (now - 500 > last_laser_time) {
         int value = digitalRead(LASER_POINT_PIN);
         digitalWrite(LASER_POINT_PIN, !value );
         last_laser_time = now;
       }
+#ifdef __DEBUG__
+      Console.println("PSB_L1 pressed");
+#endif
     }
-    
-    if (ps2x.Button(PSB_L2)) {
+
+    if (ps2x.Button(PSB_L2) || ps2x.Button(PSB_R2)) {
       cmd[2] = __FIRE;
+#ifdef __DEBUG__
+      Console.println("PSB_L2 pressed");
+#endif
     } else {
       cmd[2] = __HALT;
+    }
+
+    if (ps2x.Button(PSB_START)) {
+      cmd[0] = __CENTER;
+      cmd[1] = __CENTER;
+      cmd[2] = __HALT;
+      return;
     }
     last_ps2_gamepad_time = now;
   }
