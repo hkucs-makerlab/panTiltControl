@@ -284,17 +284,17 @@ void check_ps2_gamepad(char *cmd) {
 #ifdef __DEBUG__
     Console.println("joystickY: " + String(joystickY) + ", joystickX: " + String(joystickX));
 #endif
-    if (joystickY1 > 210 || joystickY2 > 210 ) {
+    if (joystickY1 > 210 || joystickY2 > 210 || ps2x.Button(PSB_PAD_DOWN)) {
       cmd[0] = __UPWARD ;
-    } else if (joystickY1 < 90 || joystickY2 < 90) {
+    } else if (joystickY1 < 90 || joystickY2 < 90 || ps2x.Button(PSB_PAD_UP)) {
       cmd[0] = __DOWNWARD;
     } else {
       cmd[0] = __HALT;
     }
 
-    if (joystickX1 > 190 || joystickX2 > 190) {
+    if (joystickX1 > 190 || joystickX2 > 190 || ps2x.Button(PSB_PAD_RIGHT)) {
       cmd[1] = __RIGHT;
-    } else if (joystickX1 < 50 || joystickX2 < 50) {
+    } else if (joystickX1 < 50 || joystickX2 < 50 || ps2x.Button(PSB_PAD_LEFT) ) {
       cmd[1] = __LEFT ;
     } else  {
       cmd[1] = __HALT;
